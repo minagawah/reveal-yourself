@@ -8,7 +8,8 @@ Using Github Actions to automate cargo build for multiple binaries and create ta
 &nbsp; &nbsp; [3-1. Dispatch Custom Event](#3-1-dispatch-custom-event)  
 &nbsp; &nbsp; [3-2. Get Current Version](#3-2-get-current-version)  
 &nbsp; &nbsp; [3-3. Get Commit Hash](#3-3-get-commit-hash)  
-&nbsp; &nbsp; [3-4. Build Multiple Binaries](#3-4-build-multipe-binaries)  
+&nbsp; &nbsp; [3-4. Environmental Variables](#3-4-environmental-variables)  
+&nbsp; &nbsp; [3-5. Build Multiple Binaries](#3-5-build-multipe-binaries)  
 [4. Notes](#4-notes)  
 &nbsp; &nbsp; [4-1. PAT Setup](#4-1-pat-setup)  
 [5. LICENSE](#5-license)  
@@ -16,9 +17,28 @@ Using Github Actions to automate cargo build for multiple binaries and create ta
 
 ## 1. About
 
-Using Github Actions to automate cargo build for multiple binaries and create tags.
+Using Github Actions to automate:
+
+- Build for multiple platforms
+- Generate a tag based on the package version (defined in `Cargo.toml`)
+- Make the binaries available on the release page
+
+You see most of the work in:
+
+```
+.github/workflows
+ ├─ main.yml
+ └─ release.yml
+```
+
+but detailed explanations are available in
+[3. What I Did](#3-what-i-did) as well.
+
 
 ## 2. Installation
+
+I tested on Ubuntu only, and have not on MacOS.  
+For Ubuntu:
 
 ```
 # Download binary
@@ -33,62 +53,66 @@ cd v{VERSION}-{HASH}
 cargo build --release
 ```
 
+I will build for other platforms when I have time.  
 ([BurntSushi/ripgrep](https://github.com/BurntSushi/ripgrep/tree/31adff6f3c4bfefc9e77df40871f2989443e6827#installation)
-has instructions for other targets)
+may help me for this.
 
 
 ## 3. What I Did
 
-I wanted to use Github Actions to automate several jobs I manually do.  
-That are...
+As mentioned at the top, I wanted to automate some jobs I manually do.  
+And, that are:
 
 - Build for multiple platforms
 - Generate a tag based on the package version (defined in `Cargo.toml`)
 - Make the binaries available on the release page
 
+however, there are some problems.
+
 ### 3-1. Dispatch Custom Event
 
-However, building for multiple binaries requires different VM
-should be running in the pipelines,
-and it is currently not possible in a single job.  
-The solution was found in
+The problem is that it currently does not allow me to run
+different VM in a single job.
+I found a solution in
 [this great post](https://mateuscosta.me/rust-releases-with-github-actions)
-which suggests to dispatch an event,
-and prepare corresponding jobs triggered by the event dispatched.
-
-So, I am mostly following what the post tells,
-and I have the following files under `.github/workflows`:
+which suggests to dispatch a custom event,
+and prepare corresponding jobs triggered by the dispatched event.
+So, I mainly followed what the post tells.  
+Here are the files for the jobs:
 
 ```
 .github/workflows
- ├── main.yml
- └── release.yml
+ ├─ main.yml
+ └─ release.yml
 ```
 
 In `main.yml`, I am using
 [peter-evans/repository-dispatch](https://github.com/peter-evans/repository-dispatch)
 to dispatch a custom event, called `tag-created`.
-To this event, I can attach any payloads
-so that they are shared with jobs defined in `release.yml`.
+To this event, I can attach any payloads,
+and they will be shared  with jobs defined in `release.yml`.
 
-It would be worth mentioning that
-***I had hard time setting up PAT (Personal Access Token)***
-which is required when using this event dispatcher,
-and I have [a separate note to explain the steps in detail](#4-1-pat-setup).
+**Note:**
+It is probably worth mentioning that
+I had a hard time figuring out how to setup PAT (Personal Access Token)
+which is required when dispatching repository events,
+and I have [a separate note to explain in detailed steps](#4-1-pat-setup).
 
-So, I am dispatching the event with, for instance, the following payload:
+So, I am dispatching a custom event with, for instance, the following payload:
 
 ```
 Ex.
-{ "new_version": "v9.9.99-9999999" }
+{ "new_version": "v1.1.11-abcd123" }
 ```
 
-whereas for `v9.9.99-9999999` in the above example,
-what I actually want is `v{CURRENT_VERSION}-{COMMIT_HASH}`.
+where `v1.1.11-abcd123` is an example,
+and what I meant was: `v{CURRENT_VERSION}-{COMMIT_HASH}`
 
 ### 3-2. Get Current Version
 
-So, I wanted to extract the current version defined in my `Cargo.toml`, and
+First of all, I want `CURRENT_VERSION`.
+I want to extract the current version defined in my `Cargo.toml`.
+For this,
 [toml-cli](https://crates.io/crates/toml-cli)
 gives me exactly what I want:
 
@@ -99,24 +123,55 @@ $ toml get Cargo.toml package.version | tr -d \"
 
 ### 3-3. Get Commit Hash
 
-Another thing was a commit hash, and that's easy:
+Another thing is `COMMIT_HASH`,
+which is very easily done:
 
 ```
 git rev-parse --short HEAD
 ```
 
-### 3-4. Build Multiple Binaries
+### 3-4. Environmental Variables
 
-As `tag-created` event is dispatched,
-the jobs in `release.yml` run in parallel manner.
-As you can see,
-when specifying `use-cross: true` to
+So, I have `CURRENT_VERSION` and `COMMIT_HASH`,
+and I am setting them to `$GITHUB_ENV`
+so that I can use them later.
+And, using
+[peter-evans/repository-dispatch](https://github.com/peter-evans/repository-dispatch),
+I am packing these 2 environmental variables into its payload:
+
+```yaml
+      # Set the current version to `env.CURRENT_VERSION`
+      - name: Get current version
+        run: |
+          CURRENT_VERSION="$(toml get Cargo.toml package.version | tr -d \")"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      # Set the commit hash to `env.COMMIT_HASH`
+      - name: Get commit hash
+        run: |
+          COMMIT_HASH="$(git rev-parse --short HEAD)"
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+
+      # Dispatching a repository event `tag-created`
+      # with its payload `new_version` being:
+      # `v{CURRENT_VERSION}-{COMMIT_HASH}
+      - name: Dispatch event
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          event-type: tag-created
+          client-payload: '{"new_version": "v${{ env.CURRENT_VERSION }}-${{ env.COMMIT_HASH }}"}'
+```
+
+### 3-5. Build Multiple Binaries
+
+As `tag-created` event is dispatched, the jobs in `release.yml` run in parallel manner.
+As you can see, when specifying `use-cross: true` to
 [actions-rs/cargo](https://github.com/actions-rs/cargo),
-it `cross` instead of `cargo`.
-When we actually build,
+it `cross` instead of `cargo`. When we actually build,
 it is easy as we just specify the target defined in `matrix`:
 
-```yml
+```yaml
     strategy:
       matrix:
         include:
