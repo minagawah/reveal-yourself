@@ -1,0 +1,46 @@
+name: Build and bump tag version
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Install toml-cli
+        run: cargo install toml-cli || true
+
+      # Set the current version to `env.CURRENT_VERSION`
+      - name: Get current version
+        run: |
+          CURRENT_VERSION="$(toml get Cargo.toml package.version | tr -d \")"
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+
+      # Set the commit hash to `env.COMMIT_HASH`
+      - name: Get commit hash
+        run: |
+          COMMIT_HASH="$(git rev-parse --short HEAD)"
+          echo "COMMIT_HASH=$COMMIT_HASH" >> $GITHUB_ENV
+
+      # Dispatching a repository event `tag-created`
+      # with its payload `new_version` being:
+      # `v{CURRENT_VERSION}-{COMMIT_HASH}
+      - name: Dispatch event
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          event-type: tag-created
+          client-payload: '{"new_version": "v${{ env.CURRENT_VERSION }}-${{ env.COMMIT_HASH }}"}'

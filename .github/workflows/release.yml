@@ -1,0 +1,50 @@
+name: Build and upload binaries to release
+
+on:
+  repository_dispatch:
+    types: [tag-created]
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: reveal-yourself
+            asset_name: reveal-yourself-linux-x86_64
+            target: x86_64-unknown-linux-musl
+          - os: macos-latest
+            artifact_name: reveal-yourself
+            asset_name: reveal-yourself-macos-x86_64
+            target: x86_64-apple-darwin
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+
+      # Using `cross` instead of `cargo` for build.
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      # Notice using the event payload `new_version`.
+      - name: Upload
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.event.client_payload.new_version }}
