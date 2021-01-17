@@ -8,7 +8,7 @@ Using Github Actions to automate cargo build for multiple binaries and create ta
 &nbsp; &nbsp; [3-1. Dispatch Custom Event](#3-1-dispatch-custom-event)  
 &nbsp; &nbsp; [3-2. Get Current Version](#3-2-get-current-version)  
 &nbsp; &nbsp; [3-3. Get Commit Hash](#3-3-get-commit-hash)  
-&nbsp; &nbsp; [3-4. Environmental Variables](#3-4-environmental-variables)  
+&nbsp; &nbsp; [3-4. Set Env Variables](#3-4-set-env-variables)  
 &nbsp; &nbsp; [3-5. Build Multiple Binaries](#3-5-build-multipe-binaries)  
 [4. Notes](#4-notes)  
 &nbsp; &nbsp; [4-1. PAT Setup](#4-1-pat-setup)  
@@ -39,7 +39,7 @@ but detailed explanations are available in
 
 The intention is to demonstrate *Github Actions*,
 and not actually the Rust program itself,
-but you may install the program to check.  
+but you may install the program to check.
 For this program simple read the current directory,
 and reveal the files available under the directory.
 
@@ -83,7 +83,8 @@ I found a solution in
 [this great post](https://mateuscosta.me/rust-releases-with-github-actions)
 which suggests to dispatch a custom event,
 and prepare corresponding jobs triggered by the dispatched event.
-So, I mainly followed what the post tells.  
+So, I mainly followed what the post tells.
+
 Here are the files for the jobs:
 
 ```
@@ -117,7 +118,7 @@ and what I meant was: `v{CURRENT_VERSION}-{COMMIT_HASH}`
 ### 3-2. Get Current Version
 
 First of all, I want `CURRENT_VERSION`.
-I want to extract the current version defined in my `Cargo.toml`.
+I want to extract the current version defined in my `Cargo.toml`.  
 For this,
 [toml-cli](https://crates.io/crates/toml-cli)
 gives me exactly what I want:
@@ -136,14 +137,14 @@ which is very easily done:
 git rev-parse --short HEAD
 ```
 
-### 3-4. Environmental Variables
+### 3-4. Set Env Variables
 
 So, I have `CURRENT_VERSION` and `COMMIT_HASH`,
 and I am setting them to `$GITHUB_ENV`
 so that I can use them later.
-And, using
+Using
 [peter-evans/repository-dispatch](https://github.com/peter-evans/repository-dispatch),
-I am packing these 2 environmental variables into its payload:
+I am packing these two environmental variables into its payload:
 
 ```yaml
       # Set the current version to `env.CURRENT_VERSION`
