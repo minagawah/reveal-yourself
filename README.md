@@ -32,10 +32,16 @@ You see most of the work in:
 ```
 
 but detailed explanations are available in
-[3. What I Did](#3-what-i-did) as well.
+*[3. What I Did](#3-what-i-did)* as well.
 
 
 ## 2. Installation
+
+The intention is to demonstrate *Github Actions*,
+and not actually the Rust program itself,
+but you may install the program to check.  
+For this program simple read the current directory,
+and reveal the files available under the directory.
 
 I tested on Ubuntu only, and have not on MacOS.  
 For Ubuntu:
@@ -54,8 +60,8 @@ cargo build --release
 ```
 
 I will build for other platforms when I have time.  
-([BurntSushi/ripgrep](https://github.com/BurntSushi/ripgrep/tree/31adff6f3c4bfefc9e77df40871f2989443e6827#installation)
-may help me for this.
+[BurntSushi/ripgrep](https://github.com/BurntSushi/ripgrep/tree/31adff6f3c4bfefc9e77df40871f2989443e6827#installation)
+may help me on this.
 
 
 ## 3. What I Did
