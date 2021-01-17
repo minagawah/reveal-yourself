@@ -1,6 +1,6 @@
 use std::{env, process};
 
-use useless_ls::Config;
+use reveal_yourself::Config;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
