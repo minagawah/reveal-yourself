@@ -40,8 +40,8 @@ but detailed explanations are available in
 The intention is to demonstrate *Github Actions*,
 and not actually the Rust program itself,
 but you may install the program to check.
-For this program simple read the current directory,
-and reveal the files available under the directory.
+***For this program simple read the current directory,
+and reveal the files available under the directory.***
 
 I tested on Ubuntu only, and have not on MacOS.  
 For Ubuntu:
