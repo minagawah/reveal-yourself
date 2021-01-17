@@ -9,7 +9,7 @@ fn main() {
         process::exit(1);
     });
 
-    if let Err(e) = useless_ls::run(config) {
+    if let Err(e) = reveal_yourself::run(config) {
         eprintln!("Error: {}", e);
         process::exit(1);
     }
